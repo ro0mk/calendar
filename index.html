@@ -1,0 +1,1062 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atlas Team Calendar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: app shell. Top bar over [sidebar: mini-month, day agenda, calendars | main grid].
+   One surface split by hairlines; color is reserved for events and "today". */
+:root {
+  /* neutrals, biased toward the harbor-teal accent */
+  --bg: #F4F7F7;
+  --surface: #FFFFFF;
+  --surface-2: #EDF2F2;
+  --line: #DCE4E4;
+  --line-strong: #C2CECE;
+  --fg: #142120;
+  --fg-2: #4A5A59;
+  --fg-3: #6C7B7A;
+  --accent: #0D5C64;
+  --accent-hover: #0A4A51;
+  --accent-fg: #FFFFFF;
+  --accent-soft: #DCEEEE;
+  --today-cell: #EAF5F4;
+  --hover: #F1F6F6;
+  --outside: #F2F5F5;
+  --hatch: #E6ECEC;
+  --now: #D6402F;
+  --scrim: rgba(12, 24, 24, 0.42);
+  --shadow: 0 12px 32px rgba(12, 30, 30, 0.16), 0 2px 6px rgba(12, 30, 30, 0.08);
+
+  /* event types: tinted fill + dark ink (>= 7:1) + saturated swatch */
+  --meeting-bg: #DDE7FB;  --meeting-fg: #173B7A;  --meeting-dot: #3466D6;
+  --focus-bg: #DAEFD7;    --focus-fg: #1E5520;    --focus-dot: #3E9444;
+  --one-bg: #ECE2FA;      --one-fg: #4A2484;      --one-dot: #8452D1;
+  --deadline-bg: #FBDDD8; --deadline-fg: #87200F; --deadline-dot: #D64533;
+  --away-bg: #FAEBC6;     --away-fg: #654600;     --away-dot: #C98A0B;
+
+  --font-display: "Bricolage Grotesque", "Hanken Grotesk", system-ui, sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --hour: 52px;
+  --gutter-w: 56px;
+  --cell-pad: 6px;
+  --r-sm: 5px;
+  --r-md: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1414; --surface: #141C1C; --surface-2: #1A2525; --line: #253131; --line-strong: #344341;
+    --fg: #E4EDEC; --fg-2: #A9B8B6; --fg-3: #8D9C9A;
+    --accent: #5EC2C6; --accent-hover: #7BD3D6; --accent-fg: #062325; --accent-soft: #15393A;
+    --today-cell: #132A2A; --hover: #1A2424; --outside: #111818; --hatch: #172121;
+    --now: #FF7461; --scrim: rgba(0, 0, 0, 0.6);
+    --shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+    --meeting-bg: #1C2F52;  --meeting-fg: #CADBFF;  --meeting-dot: #6E9BFF;
+    --focus-bg: #1C3920;    --focus-fg: #C0E8C3;    --focus-dot: #6CC774;
+    --one-bg: #33244F;      --one-fg: #E2D2FF;      --one-dot: #B08CF5;
+    --deadline-bg: #4A1E19; --deadline-fg: #FFD2CA; --deadline-dot: #FF7A66;
+    --away-bg: #45360F;     --away-fg: #F8E3A9;     --away-dot: #E8B33C;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1414; --surface: #141C1C; --surface-2: #1A2525; --line: #253131; --line-strong: #344341;
+  --fg: #E4EDEC; --fg-2: #A9B8B6; --fg-3: #8D9C9A;
+  --accent: #5EC2C6; --accent-hover: #7BD3D6; --accent-fg: #062325; --accent-soft: #15393A;
+  --today-cell: #132A2A; --hover: #1A2424; --outside: #111818; --hatch: #172121;
+  --now: #FF7461; --scrim: rgba(0, 0, 0, 0.6);
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --meeting-bg: #1C2F52;  --meeting-fg: #CADBFF;  --meeting-dot: #6E9BFF;
+  --focus-bg: #1C3920;    --focus-fg: #C0E8C3;    --focus-dot: #6CC774;
+  --one-bg: #33244F;      --one-fg: #E2D2FF;      --one-dot: #B08CF5;
+  --deadline-bg: #4A1E19; --deadline-fg: #FFD2CA; --deadline-dot: #FF7A66;
+  --away-bg: #45360F;     --away-fg: #F8E3A9;     --away-dot: #E8B33C;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.4 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* event type → tokens, shared by every view */
+.t-meeting  { --ev-bg: var(--meeting-bg);  --ev-fg: var(--meeting-fg);  --ev-dot: var(--meeting-dot); }
+.t-focus    { --ev-bg: var(--focus-bg);    --ev-fg: var(--focus-fg);    --ev-dot: var(--focus-dot); }
+.t-one      { --ev-bg: var(--one-bg);      --ev-fg: var(--one-fg);      --ev-dot: var(--one-dot); }
+.t-deadline { --ev-bg: var(--deadline-bg); --ev-fg: var(--deadline-fg); --ev-dot: var(--deadline-dot); }
+.t-away     { --ev-bg: var(--away-bg);     --ev-fg: var(--away-fg);     --ev-dot: var(--away-dot); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ev-dot); flex: none; }
+
+/* ---------- shell ---------- */
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-inline: 16px;
+  padding-block: 12px 16px;
+  gap: 12px;
+  box-sizing: border-box;
+}
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; margin-right: auto; }
+.mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--accent); color: var(--accent-fg);
+  display: grid; place-items: center;
+  font: 700 15px/1 var(--font-display);
+}
+.brand-name { font: 600 13px/1.2 var(--font-body); color: var(--fg-2); letter-spacing: 0.02em; }
+.period { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.period h1 {
+  margin: 0;
+  font: 700 clamp(20px, 2.4vw, 26px)/1.1 var(--font-display);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.wk-tag {
+  font: 500 11px/1 var(--font-mono);
+  color: var(--fg-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 6px;
+  letter-spacing: 0.04em;
+}
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.seg {
+  display: inline-flex;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 2px;
+}
+.seg button {
+  border: 0; background: transparent;
+  padding: 6px 14px; border-radius: 7px;
+  font-weight: 600; font-size: 13px; color: var(--fg-2);
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px var(--line); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-weight: 600; font-size: 13px;
+}
+.btn:hover { background: var(--hover); }
+.btn.icon { width: 34px; padding: 0; justify-content: center; }
+.btn.icon svg { width: 16px; height: 16px; }
+.nav { display: inline-flex; gap: 4px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn.danger { color: var(--deadline-fg); border-color: var(--line-strong); }
+
+.layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 256px minmax(0, 1fr);
+  gap: 12px;
+}
+
+/* ---------- sidebar ---------- */
+.side {
+  display: flex; flex-direction: column; gap: 18px;
+  min-height: 0; overflow: auto;
+  padding: 4px 4px 4px 0;
+}
+.side h2 {
+  margin: 0 0 8px;
+  font: 600 11px/1.2 var(--font-body);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--fg-3);
+}
+.mini-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.mini-head strong { font: 600 14px/1 var(--font-display); }
+.mini-head .btn.icon { width: 28px; height: 28px; border-color: transparent; background: transparent; }
+.mini-head .btn.icon:hover { background: var(--surface-2); }
+.mini {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.mini .wd { font: 600 10px/24px var(--font-body); color: var(--fg-3); letter-spacing: 0.06em; }
+.mini button {
+  position: relative;
+  border: 0; background: transparent;
+  height: 32px; border-radius: 50%;
+  font-size: 12.5px; font-weight: 500;
+  aspect-ratio: 1; justify-self: center; width: 32px; max-width: 100%;
+}
+.mini button:hover { background: var(--surface-2); }
+.mini button.out { color: var(--fg-3); }
+.mini button.inweek { background: var(--accent-soft); border-radius: 0; width: 100%; aspect-ratio: auto; }
+.mini button.today { background: var(--accent); color: var(--accent-fg); font-weight: 700; border-radius: 50%; width: 32px; aspect-ratio: 1; }
+.mini button.sel:not(.today) { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 50%; width: 32px; aspect-ratio: 1; }
+.mini button.has::after {
+  content: ""; position: absolute; left: 50%; bottom: 3px;
+  width: 4px; height: 4px; margin-left: -2px; border-radius: 50%;
+  background: var(--fg-3);
+}
+.mini button.today.has::after { background: var(--accent-fg); }
+
+.agenda-date { font: 700 17px/1.2 var(--font-display); margin: 0 0 8px; }
+.agenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.agenda li button {
+  width: 100%; text-align: left;
+  display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 4px 10px; align-items: baseline;
+  border: 0; background: transparent; border-radius: 6px; padding: 7px 8px;
+}
+.agenda li button:hover { background: var(--surface-2); }
+.agenda .dot { align-self: center; }
+.agenda .a-title { font-weight: 600; overflow-wrap: anywhere; }
+.agenda .a-meta { grid-column: 2; font: 400 11.5px/1.3 var(--font-mono); color: var(--fg-2); }
+.empty { color: var(--fg-2); font-size: 13px; margin: 0; max-width: 32ch; }
+
+.cals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.cals label {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px; border-radius: 6px; cursor: pointer;
+}
+.cals label:hover { background: var(--surface-2); }
+.cals input { position: absolute; opacity: 0; pointer-events: none; }
+.swatch {
+  width: 16px; height: 16px; border-radius: 4px; flex: none;
+  border: 2px solid var(--ev-dot); background: var(--ev-dot);
+  display: grid; place-items: center;
+}
+.swatch svg { width: 10px; height: 10px; color: var(--surface); }
+.cals input:not(:checked) + .swatch { background: transparent; }
+.cals input:not(:checked) + .swatch svg { visibility: hidden; }
+.cals input:focus-visible + .swatch { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cals .c-name { flex: 1; font-weight: 500; }
+.cals .c-count { font: 400 11px/1 var(--font-mono); color: var(--fg-3); }
+
+/* ---------- main ---------- */
+.main {
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.view-scroll { flex: 1; min-height: 0; overflow: auto; }
+
+/* shared header row: weekday names in month, day columns in week */
+.dow-row {
+  display: grid;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.dow {
+  padding: 8px var(--cell-pad);
+  font: 600 11px/1.2 var(--font-body);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+/* chips: identical in month cells, week all-day row and sidebar swatches */
+.chip {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; min-width: 0; height: 22px;
+  padding: 0 7px;
+  border: 0; border-radius: var(--r-sm);
+  background: var(--ev-bg); color: var(--ev-fg);
+  font: 600 12px/22px var(--font-body);
+  text-align: left; white-space: nowrap;
+  box-sizing: border-box;
+}
+.chip:hover { filter: brightness(0.96) saturate(1.1); }
+.chip .txt { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.chip .tm { font: 500 11px/22px var(--font-mono); opacity: 0.85; flex: none; }
+.chip.bar { font-weight: 700; }
+.chip.cont-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.chip.cont-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.chip .ghost { visibility: hidden; }
+
+/* ---------- month view ---------- */
+.month { display: flex; flex-direction: column; min-height: 100%; }
+.month .dow-row { grid-template-columns: repeat(7, minmax(0, 1fr)); position: sticky; top: 0; z-index: 3; }
+.mgrid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: minmax(132px, 1fr);
+}
+.cell {
+  position: relative;
+  min-width: 0;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: var(--cell-pad);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.cell:nth-child(7n) { border-right: 0; }
+.cell:hover { background: var(--hover); }
+.cell.out {
+  background: repeating-linear-gradient(135deg, var(--outside) 0 6px, var(--hatch) 6px 7px);
+}
+.cell.out:hover { background: var(--hover); }
+.cell.today { background: var(--today-cell); }
+.cell.sel { box-shadow: inset 0 0 0 2px var(--accent); z-index: 1; }
+.cell:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 0 4px var(--accent-soft); }
+.cell-head { display: flex; align-items: center; justify-content: space-between; height: 24px; }
+.num {
+  display: inline-grid; place-items: center;
+  min-width: 24px; height: 24px; padding: 0 4px; box-sizing: border-box;
+  border-radius: 12px;
+  font: 600 12.5px/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+.cell.out .num { color: var(--fg-3); font-weight: 500; }
+.cell.today .num { background: var(--accent); color: var(--accent-fg); font-weight: 700; }
+.add {
+  width: 22px; height: 22px; border-radius: 6px;
+  border: 1px solid var(--line-strong); background: var(--surface);
+  color: var(--fg-2); font-size: 15px; line-height: 1;
+  display: grid; place-items: center; padding: 0;
+  opacity: 0; transition: opacity 0.12s ease;
+}
+.cell:hover .add, .cell:focus-within .add { opacity: 1; }
+.add:hover { color: var(--accent); border-color: var(--accent); }
+.stack { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.stack .spacer { height: 22px; }
+/* multi-day bars bleed across the cell padding + border so segments join */
+.stack .chip.cont-l { margin-left: calc(-1 * var(--cell-pad) - 1px); width: calc(100% + var(--cell-pad) + 1px); }
+.stack .chip.cont-r { margin-right: calc(-1 * var(--cell-pad)); width: calc(100% + var(--cell-pad)); }
+.stack .chip.cont-l.cont-r { width: calc(100% + 2 * var(--cell-pad) + 1px); }
+.more {
+  border: 0; background: transparent; padding: 0 4px; text-align: left;
+  font: 600 11.5px/18px var(--font-body); color: var(--fg-2);
+  border-radius: 4px;
+}
+.more:hover { background: var(--surface-2); color: var(--fg); }
+
+/* ---------- week view ---------- */
+.week { min-width: 720px; }
+.week-sticky { position: sticky; top: 0; z-index: 4; background: var(--surface); }
+.week .dow-row, .wk-allday, .wk-body { grid-template-columns: var(--gutter-w) repeat(7, minmax(0, 1fr)); }
+.wk-day {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  border-left: 1px solid var(--line);
+  border-radius: 0; background: transparent; border-top: 0; border-right: 0; border-bottom: 0;
+  text-align: left;
+}
+.wk-day:hover { background: var(--hover); }
+.wk-day .dow { padding: 0; }
+.wk-day .num { font-size: 15px; min-width: 30px; height: 30px; border-radius: 15px; }
+.wk-day.today { background: var(--today-cell); }
+.wk-day.today .num { background: var(--accent); color: var(--accent-fg); }
+.wk-day.today .dow { color: var(--accent); }
+.wk-day.sel:not(.today) .num { box-shadow: inset 0 0 0 2px var(--accent); }
+.wk-allday {
+  display: grid;
+  border-bottom: 1px solid var(--line-strong);
+}
+.gutter-lbl {
+  font: 500 10.5px/1 var(--font-mono); color: var(--fg-3);
+  padding: 8px 8px 0 0; text-align: right;
+}
+.ad-grid {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: 22px;
+  row-gap: 3px;
+  padding: 5px 0;
+  min-height: 22px;
+  background-image: linear-gradient(to right, var(--line) 1px, transparent 1px);
+  background-size: calc(100% / 7) 100%;
+}
+.ad-grid .chip { margin: 0 4px; width: auto; }
+.ad-grid .chip.cont-l { margin-left: 0; }
+.ad-grid .chip.cont-r { margin-right: 0; }
+.wk-body { display: grid; position: relative; }
+.hours { position: relative; height: calc(var(--hour) * var(--span-h)); }
+.hours span {
+  position: absolute; right: 8px; transform: translateY(-50%);
+  font: 400 10.5px/1 var(--font-mono); color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+.col {
+  position: relative;
+  height: calc(var(--hour) * var(--span-h));
+  border-left: 1px solid var(--line);
+  background-image:
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, transparent calc(var(--hour) / 2), var(--hatch) calc(var(--hour) / 2), var(--hatch) calc(var(--hour) / 2 + 1px), transparent calc(var(--hour) / 2 + 1px));
+  background-size: 100% var(--hour);
+  cursor: cell;
+}
+.col.weekend { background-color: var(--outside); }
+.col.today { background-color: var(--today-cell); }
+.col:hover { background-color: var(--hover); }
+.ev {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 3px 6px 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: inset 3px 0 0 var(--ev-dot), 0 0 0 1px var(--surface);
+  background: var(--ev-bg); color: var(--ev-fg);
+  text-align: left; overflow: hidden;
+  display: flex; flex-direction: column; gap: 1px;
+  font: 600 12px/1.25 var(--font-body);
+  z-index: 1;
+}
+.ev:hover { filter: brightness(0.96) saturate(1.1); z-index: 2; }
+.ev .ev-t { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.ev .ev-m { font: 500 10.5px/1.2 var(--font-mono); opacity: 0.85; }
+.ev.short { flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; padding-block: 0; }
+.ev.short .ev-t { display: block; text-overflow: ellipsis; }
+.ev.compact .ev-t, .ev.compact .ev-m { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev .ev-t { overflow-wrap: anywhere; }
+.now-line {
+  position: absolute; left: -1px; right: 0; height: 2px;
+  background: var(--now); z-index: 3; pointer-events: none;
+}
+.now-line::before {
+  content: ""; position: absolute; left: -5px; top: -4px;
+  width: 10px; height: 10px; border-radius: 50%; background: var(--now);
+}
+
+/* ---------- legend (in main footer) ---------- */
+.legend {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12px; color: var(--fg-2);
+}
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .hint { margin-left: auto; color: var(--fg-3); }
+
+/* ---------- dialogs ---------- */
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0;
+  width: min(420px, calc(100vw - 32px));
+  background: var(--surface); color: var(--fg);
+  box-shadow: var(--shadow);
+}
+dialog::backdrop { background: var(--scrim); }
+.dlg { display: flex; flex-direction: column; gap: 14px; padding: 20px; }
+.dlg h3 { margin: 0; font: 700 20px/1.2 var(--font-display); text-wrap: balance; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field > span, .field legend { font: 600 11px/1.2 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); padding: 0; }
+.field input[type="text"], .field input[type="date"], .field input[type="time"] {
+  height: 38px; padding: 0 10px; box-sizing: border-box; width: 100%;
+  border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg);
+}
+.row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.row .field:first-child { grid-column: span 1; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+fieldset.field { border: 0; margin: 0; padding: 0; }
+.types { display: flex; flex-wrap: wrap; gap: 6px; }
+.types label { position: relative; }
+.types input { position: absolute; opacity: 0; }
+.types .chip { width: auto; padding: 0 10px; height: 28px; line-height: 28px; cursor: pointer; box-shadow: inset 0 0 0 1px transparent; }
+.types input:checked + .chip { box-shadow: inset 0 0 0 2px var(--ev-dot); }
+.types input:focus-visible + .chip { outline: 2px solid var(--accent); outline-offset: 2px; }
+.err { color: var(--deadline-fg); font-size: 12.5px; margin: 0; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; }
+.detail-type { display: inline-flex; align-self: flex-start; width: auto; }
+.detail-when { font: 500 13px/1.4 var(--font-mono); color: var(--fg-2); margin: 0; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 960px) {
+  html, body { height: auto; }
+  .app { height: auto; }
+  .layout { display: flex; flex-direction: column-reverse; }
+  .side { overflow: visible; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; padding: 4px 0; }
+  .main { min-height: 0; }
+  .main[data-view="week"] .view-scroll { max-height: 78vh; }
+}
+@media (max-width: 640px) {
+  .brand { flex-basis: 100%; }
+  .period h1 { font-size: 20px; }
+  .controls { width: 100%; }
+  .controls .create { margin-left: auto; }
+  .create .lbl { display: none; }
+  .create { width: 34px; padding: 0; justify-content: center; }
+  :root { --cell-pad: 3px; }
+  .mgrid { grid-auto-rows: minmax(64px, auto); }
+  .dow { padding-inline: 2px; text-align: center; letter-spacing: 0.02em; }
+  .cell-head { justify-content: center; }
+  .add { display: none; }
+  /* chips collapse to colour bars; the sidebar agenda carries the titles */
+  .stack .chip { height: 5px; padding: 0; font-size: 0; background: var(--ev-dot); }
+  .num .mo { display: none; }
+  .stack .chip .dot, .stack .chip .tm { display: none; }
+  .stack .spacer { height: 5px; }
+  .more { font-size: 10.5px; line-height: 14px; text-align: center; padding: 0; }
+  .legend .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">A</div>
+      <div>
+        <div class="brand-name">Atlas product team</div>
+        <div class="period">
+          <h1 id="periodLabel">October 2026</h1>
+          <span class="wk-tag" id="weekTag">W40</span>
+        </div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Calendar view">
+        <button type="button" id="vMonth" aria-pressed="true">Month</button>
+        <button type="button" id="vWeek" aria-pressed="false">Week</button>
+      </div>
+      <div class="nav">
+        <button class="btn icon" type="button" id="prev" aria-label="Previous period">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg>
+        </button>
+        <button class="btn icon" type="button" id="next" aria-label="Next period">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></svg>
+        </button>
+      </div>
+      <button class="btn" type="button" id="todayBtn">Today</button>
+      <button class="btn primary create" type="button" id="createBtn" aria-label="New event">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+        <span class="lbl">New event</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="side" aria-label="Navigation and filters">
+      <section>
+        <div class="mini-head">
+          <strong id="miniLabel">October 2026</strong>
+          <div>
+            <button class="btn icon" type="button" id="miniPrev" aria-label="Previous month in mini calendar">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg>
+            </button>
+            <button class="btn icon" type="button" id="miniNext" aria-label="Next month in mini calendar">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="mini" id="mini"></div>
+      </section>
+
+      <section aria-live="polite">
+        <h2>Selected day</h2>
+        <p class="agenda-date" id="agendaDate"></p>
+        <ul class="agenda" id="agenda"></ul>
+      </section>
+
+      <section>
+        <h2>Atlas team calendars</h2>
+        <ul class="cals" id="cals"></ul>
+      </section>
+    </aside>
+
+    <main class="main" id="main">
+      <div class="view-scroll" id="viewScroll"></div>
+      <div class="legend" id="legend"></div>
+    </main>
+  </div>
+</div>
+
+<dialog id="createDlg" aria-labelledby="createTitle">
+  <form class="dlg" id="createForm" method="dialog" novalidate>
+    <h3 id="createTitle">New event</h3>
+    <label class="field">
+      <span>Title</span>
+      <input type="text" id="fTitle" placeholder="e.g. Design crit: Billing v2" autocomplete="off">
+    </label>
+    <div class="row">
+      <label class="field"><span>Date</span><input type="date" id="fDate"></label>
+      <label class="field"><span>Starts</span><input type="time" id="fStart" value="10:00" step="900"></label>
+      <label class="field"><span>Ends</span><input type="time" id="fEnd" value="11:00" step="900"></label>
+    </div>
+    <label class="check"><input type="checkbox" id="fAllDay"> All day</label>
+    <fieldset class="field">
+      <legend>Calendar</legend>
+      <div class="types" id="fTypes"></div>
+    </fieldset>
+    <p class="err" id="fErr" hidden></p>
+    <div class="actions">
+      <button class="btn" type="button" id="fCancel">Cancel</button>
+      <button class="btn primary" type="submit">Add event</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="detailDlg" aria-labelledby="dTitle">
+  <div class="dlg">
+    <span class="chip detail-type" id="dType"></span>
+    <h3 id="dTitle"></h3>
+    <p class="detail-when" id="dWhen"></p>
+    <div class="actions">
+      <button class="btn danger" type="button" id="dDelete">Delete event</button>
+      <button class="btn" type="button" id="dClose">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const TYPES = {
+    meeting:  { label: "Meetings" },
+    focus:    { label: "Focus time" },
+    one:      { label: "1:1s" },
+    deadline: { label: "Deadlines" },
+    away:     { label: "Travel & OOO" },
+  };
+  const START_H = 7, END_H = 21, MAX_ROWS = 4;
+  const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  // ---- date helpers (weeks start Monday) ----
+  const sod = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const sow = d => { const x = sod(d); return addDays(x, -((x.getDay() + 6) % 7)); };
+  const diff = (a, b) => Math.round((sod(b) - sod(a)) / 864e5);
+  const same = (a, b) => diff(a, b) === 0;
+  const pad = n => String(n).padStart(2, "0");
+  const key = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const fromKey = k => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
+  const toMin = s => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+  const fmtMin = m => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+  const fmt = (d, o) => d.toLocaleDateString("en-US", o);
+  const isoWeek = d => {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const n = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - n);
+    return Math.ceil(((t - Date.UTC(t.getUTCFullYear(), 0, 1)) / 864e5 + 1) / 7);
+  };
+  const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // ---- sample schedule, anchored to the Monday of the current week ----
+  const today = sod(new Date());
+  const base = sow(today);
+  // [dayOffset, start, end, type, title, spanDays]   start = null → all-day
+  const SEED = [
+    [-14, "10:00", "11:30", "meeting", "Sprint 39 planning"],
+    [-12, "13:00", "15:30", "focus", "Draft Q4 roadmap narrative"],
+    [-11, "15:00", "15:30", "one", "1:1 · Priya / Marco"],
+    [-10, null, null, "deadline", "Q3 board deck due"],
+    [-7, "10:00", "11:00", "meeting", "Sprint 39 review"],
+    [-6, "13:00", "15:00", "focus", "Write onboarding spec"],
+    [-5, "15:00", "15:30", "one", "1:1 · Priya / Marco"],
+    [-4, null, null, "deadline", "OKR self-reviews due"],
+    [-3, "11:00", "12:00", "meeting", "Design crit: Billing v2"],
+    [0, "09:00", "10:30", "meeting", "Sprint 40 planning"],
+    [0, "14:00", "16:00", "focus", "Deep work: API pagination"],
+    [1, "10:00", "10:30", "one", "1:1 · Priya / Dana"],
+    [1, "11:00", "12:00", "meeting", "Customer call · Lumen Health"],
+    [1, "13:30", "15:30", "focus", "Prototype checkout flow"],
+    [2, null, null, "away", "Marco at DevSummit Berlin", 3],
+    [2, "09:30", "10:15", "meeting", "Roadmap sync with Sales"],
+    [2, "16:00", "17:00", "meeting", "Incident retro: payments outage"],
+    [3, "08:30", "10:30", "focus", "Q4 planning doc"],
+    [3, "11:00", "11:45", "meeting", "Accessibility audit kickoff"],
+    [3, "11:15", "12:00", "one", "1:1 · Dana / Leo"],
+    [3, "14:00", "15:00", "meeting", "Hiring panel: Senior iOS"],
+    [3, "17:00", "17:30", "deadline", "Release 4.12 code freeze"],
+    [4, "10:00", "11:00", "meeting", "Product demo day"],
+    [4, "13:00", "14:00", "focus", "PR reviews + inbox"],
+    [4, "16:30", "17:30", "meeting", "Team social: board games"],
+    [7, null, null, "deadline", "Q4 OKRs locked"],
+    [7, "10:00", "10:45", "meeting", "Sprint 40 mid-point check"],
+    [8, "09:00", "12:00", "focus", "Usability tests: search"],
+    [9, "15:00", "15:30", "one", "1:1 · Priya / Marco"],
+    [10, "13:00", "14:30", "meeting", "Quarterly business review"],
+    [11, null, null, "away", "Dana out (PTO)", 4],
+    [14, "09:00", "10:30", "meeting", "Sprint 41 planning"],
+    [14, null, null, "deadline", "Release 4.12 ships"],
+    [15, "14:00", "16:00", "focus", "Write migration runbook"],
+    [16, "10:00", "10:30", "one", "1:1 · Dana / Leo"],
+    [17, null, null, "away", "Team offsite · Lisbon", 2],
+    [21, "11:00", "12:00", "meeting", "Design crit: Search results"],
+    [22, null, null, "deadline", "Security review sign-off"],
+    [23, "13:00", "15:00", "focus", "Accessibility fixes"],
+    [24, "15:00", "16:00", "meeting", "Sprint 41 review"],
+    [25, "12:00", "13:00", "meeting", "Team lunch"],
+    [28, "09:00", "10:30", "meeting", "Sprint 42 planning"],
+    [30, "15:00", "15:30", "one", "1:1 · Priya / Marco"],
+    [31, "10:00", "12:00", "focus", "Year-end metrics pull"],
+    [35, null, null, "deadline", "Annual plan first draft"],
+  ];
+  let uid = 0;
+  const events = SEED.map(([o, s, e, type, title, days]) => ({
+    id: ++uid, title, type, date: addDays(base, o),
+    allDay: !s, days: days || 1, start: s ? toMin(s) : 0, end: e ? toMin(e) : 0,
+  }));
+
+  // ---- state ----
+  const state = { view: "month", cursor: new Date(today), selected: new Date(today), mini: new Date(today), hidden: new Set() };
+  try { const v = localStorage.getItem("atlas-cal-view"); if (v === "week" || v === "month") state.view = v; } catch (e) {}
+
+  const visible = e => !state.hidden.has(e.type);
+  const covers = (e, d) => { const n = diff(e.date, d); return n >= 0 && n < e.days; };
+  const order = (a, b) => (b.allDay - a.allDay) || (b.days - a.days) || (a.start - b.start) || a.title.localeCompare(b.title);
+  const eventsOn = d => events.filter(e => visible(e) && covers(e, d)).sort(order);
+  const whenText = e => {
+    const d0 = fmt(e.date, { weekday: "short", month: "short", day: "numeric" });
+    if (e.allDay && e.days > 1) return `${d0} – ${fmt(addDays(e.date, e.days - 1), { weekday: "short", month: "short", day: "numeric" })} · all day`;
+    if (e.allDay) return `${d0} · all day`;
+    return `${d0} · ${fmtMin(e.start)}–${fmtMin(e.end)}`;
+  };
+
+  const $ = id => document.getElementById(id);
+  const scroller = $("viewScroll");
+
+  // Assign each all-day event in a week a lane so multi-day bars stay on one row.
+  function lanesForWeek(ws) {
+    const we = addDays(ws, 6);
+    const list = events.filter(e => visible(e) && e.allDay && diff(e.date, we) >= 0 && diff(ws, addDays(e.date, e.days - 1)) >= 0)
+      .sort((a, b) => diff(b.date, a.date) || b.days - a.days);
+    const lanes = [];
+    return list.map(e => {
+      const from = Math.max(0, diff(ws, e.date)), to = Math.min(6, diff(ws, addDays(e.date, e.days - 1)));
+      let lane = lanes.findIndex(row => row.slice(from, to + 1).every(x => !x));
+      if (lane < 0) { lane = lanes.length; lanes.push(Array(7).fill(false)); }
+      for (let i = from; i <= to; i++) lanes[lane][i] = true;
+      return { e, lane, from, to };
+    });
+  }
+
+  function chip(e, extra = "", inner) {
+    const label = `${e.title}, ${whenText(e)}`;
+    return `<button type="button" class="chip t-${e.type} ${extra}" data-ev="${e.id}" aria-label="${esc(label)}">${inner}</button>`;
+  }
+
+  // ---------- month ----------
+  function renderMonth() {
+    const c = state.cursor, first = new Date(c.getFullYear(), c.getMonth(), 1);
+    const last = new Date(c.getFullYear(), c.getMonth() + 1, 0);
+    const start = sow(first), weeks = diff(start, sow(last)) / 7 + 1;
+    let html = `<div class="month"><div class="dow-row" role="row">${WD.map(d => `<div class="dow" role="columnheader">${d}</div>`).join("")}</div><div class="mgrid" role="grid" aria-label="${fmt(first, { month: "long", year: "numeric" })}">`;
+    for (let w = 0; w < weeks; w++) {
+      const ws = addDays(start, w * 7), placed = lanesForWeek(ws);
+      for (let i = 0; i < 7; i++) {
+        const d = addDays(ws, i);
+        const bars = placed.filter(p => p.from <= i && p.to >= i);
+        const laneCount = bars.reduce((m, p) => Math.max(m, p.lane + 1), 0);
+        const rows = [];
+        for (let l = 0; l < laneCount; l++) {
+          const p = bars.find(b => b.lane === l);
+          if (!p) { rows.push({ spacer: true }); continue; }
+          const startsHere = i === p.from, endsHere = i === p.to;
+          const realStart = same(p.e.date, d), realEnd = same(addDays(p.e.date, p.e.days - 1), d);
+          const cls = ["bar", realStart ? "" : "cont-l", realEnd ? "" : "cont-r"].join(" ");
+          const showText = startsHere;
+          rows.push({ html: showText
+            ? chip(p.e, cls, `<span class="txt">${esc(p.e.title)}</span>`)
+            : `<button type="button" class="chip t-${p.e.type} ${cls}" data-ev="${p.e.id}" tabindex="-1" aria-hidden="true"><span class="txt ghost">${esc(p.e.title)}</span></button>`, ev: true });
+        }
+        events.filter(e => visible(e) && !e.allDay && same(e.date, d)).sort(order).forEach(e =>
+          rows.push({ html: chip(e, "", `<span class="dot"></span><span class="tm">${fmtMin(e.start)}</span><span class="txt">${esc(e.title)}</span>`), ev: true }));
+        while (rows.length && rows[rows.length - 1].spacer) rows.pop();
+        const total = rows.filter(r => r.ev).length;
+        let shown = rows;
+        if (rows.length > MAX_ROWS) shown = rows.slice(0, MAX_ROWS - 1);
+        const hiddenN = total - shown.filter(r => r.ev).length;
+        const out = d.getMonth() !== c.getMonth();
+        const cls = ["cell", out && "out", same(d, today) && "today", same(d, state.selected) && "sel"].filter(Boolean).join(" ");
+        const numLabel = d.getDate() === 1 ? `<span class="mo">${fmt(d, { month: "short" })}&nbsp;</span>1` : d.getDate();
+        const aria = `${fmt(d, { weekday: "long", month: "long", day: "numeric" })}${same(d, today) ? ", today" : ""}, ${total ? total + (total === 1 ? " event" : " events") : "no events"}`;
+        html += `<div class="${cls}" role="gridcell" data-date="${key(d)}" tabindex="${same(d, state.selected) ? 0 : -1}" aria-selected="${same(d, state.selected)}" aria-label="${aria}">
+          <div class="cell-head"><span class="num">${numLabel}</span><button type="button" class="add" data-add="${key(d)}" aria-label="Add event on ${fmt(d, { month: "long", day: "numeric" })}" tabindex="-1">+</button></div>
+          <div class="stack">${shown.map(r => r.spacer ? `<div class="spacer"></div>` : r.html).join("")}${hiddenN > 0 ? `<button type="button" class="more" data-more="${key(d)}">+${hiddenN} more</button>` : ""}</div>
+        </div>`;
+      }
+    }
+    scroller.innerHTML = html + "</div></div>";
+  }
+
+  // ---------- week ----------
+  function layoutDay(list) {
+    const items = list.map(e => ({ e, col: 0, cols: 1 })).sort((a, b) => a.e.start - b.e.start || b.e.end - a.e.end);
+    let cluster = [], end = -1;
+    const flush = () => {
+      const cols = [];
+      cluster.forEach(it => {
+        let i = cols.findIndex(x => x <= it.e.start);
+        if (i < 0) { i = cols.length; cols.push(0); }
+        cols[i] = it.e.end; it.col = i;
+      });
+      cluster.forEach(it => it.cols = cols.length);
+    };
+    items.forEach(it => {
+      if (cluster.length && it.e.start >= end) { flush(); cluster = []; end = -1; }
+      cluster.push(it); end = Math.max(end, it.e.end);
+    });
+    if (cluster.length) flush();
+    return items;
+  }
+
+  function renderWeek() {
+    const ws = sow(state.cursor), span = END_H - START_H;
+    let head = `<div class="dow-row"><div></div>`;
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(ws, i);
+      const cls = ["wk-day", same(d, today) && "today", same(d, state.selected) && "sel"].filter(Boolean).join(" ");
+      head += `<button type="button" class="${cls}" data-date="${key(d)}" aria-label="${fmt(d, { weekday: "long", month: "long", day: "numeric" })}${same(d, today) ? ", today" : ""}"><span class="dow">${WD[i]}</span><span class="num">${d.getDate()}</span></button>`;
+    }
+    head += `</div>`;
+    const placed = lanesForWeek(ws);
+    const ad = placed.map(p => {
+      const cls = ["bar", diff(p.e.date, addDays(ws, p.from)) > 0 ? "cont-l" : "", diff(addDays(ws, p.to), addDays(p.e.date, p.e.days - 1)) > 0 ? "cont-r" : ""].join(" ");
+      return chip(p.e, cls, `<span class="txt">${esc(p.e.title)}</span>`).replace("<button", `<button style="grid-column:${p.from + 1} / ${p.to + 2};grid-row:${p.lane + 1}"`);
+    }).join("");
+    let body = `<div class="wk-body" style="--span-h:${span}"><div class="hours" aria-hidden="true">`;
+    for (let h = START_H + 1; h < END_H; h++) body += `<span style="top:calc(var(--hour) * ${h - START_H})">${pad(h)}:00</span>`;
+    body += `</div>`;
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(ws, i);
+      const cls = ["col", i > 4 && "weekend", same(d, today) && "today"].filter(Boolean).join(" ");
+      body += `<div class="${cls}" data-col="${key(d)}">`;
+      layoutDay(events.filter(e => visible(e) && !e.allDay && same(e.date, d))).forEach(({ e, col, cols }) => {
+        const s = Math.max(e.start, START_H * 60), en = Math.min(e.end, END_H * 60);
+        if (en <= s) return;
+        const top = (s - START_H * 60) / 60, h = (en - s) / 60;
+        const short = en - s <= 30, compact = !short && (en - s < 60 || cols > 1);
+        body += `<button type="button" class="ev t-${e.type}${short ? " short" : compact ? " compact" : ""}" data-ev="${e.id}"
+          style="top:calc(var(--hour) * ${top} + 1px);height:calc(var(--hour) * ${h} - 2px);left:calc(${(col / cols) * 100}% + 2px);width:calc(${100 / cols}% - 4px)"
+          aria-label="${esc(e.title + ", " + whenText(e))}"><span class="ev-t">${esc(e.title)}</span><span class="ev-m">${fmtMin(e.start)}–${fmtMin(e.end)}</span></button>`;
+      });
+      if (same(d, today)) body += `<div class="now-line" id="nowLine" hidden></div>`;
+      body += `</div>`;
+    }
+    body += `</div>`;
+    scroller.innerHTML = `<div class="week"><div class="week-sticky">${head}<div class="wk-allday"><div class="gutter-lbl">all-day</div><div class="ad-grid">${ad}</div></div></div>${body}</div>`;
+    placeNow();
+  }
+
+  function placeNow() {
+    const line = $("nowLine");
+    if (!line) return;
+    const n = new Date(), m = n.getHours() * 60 + n.getMinutes();
+    line.hidden = m < START_H * 60 || m > END_H * 60;
+    line.style.top = `calc(var(--hour) * ${(m - START_H * 60) / 60})`;
+  }
+  setInterval(placeNow, 60000);
+
+  // ---------- sidebar ----------
+  function renderMini() {
+    const c = state.mini, first = new Date(c.getFullYear(), c.getMonth(), 1);
+    const start = sow(first), wsSel = sow(state.cursor);
+    $("miniLabel").textContent = fmt(first, { month: "long", year: "numeric" });
+    let html = ["M", "T", "W", "T", "F", "S", "S"].map(d => `<span class="wd" aria-hidden="true">${d}</span>`).join("");
+    for (let i = 0; i < 42; i++) {
+      const d = addDays(start, i);
+      const cls = [d.getMonth() !== c.getMonth() && "out", same(d, today) && "today", same(d, state.selected) && "sel",
+        state.view === "week" && diff(wsSel, d) >= 0 && diff(wsSel, d) < 7 && "inweek",
+        events.some(e => visible(e) && covers(e, d)) && "has"].filter(Boolean).join(" ");
+      html += `<button type="button" class="${cls}" data-mini="${key(d)}" aria-label="${fmt(d, { weekday: "long", month: "long", day: "numeric" })}"${same(d, state.selected) ? ' aria-current="date"' : ""}>${d.getDate()}</button>`;
+    }
+    $("mini").innerHTML = html;
+  }
+
+  function renderAgenda() {
+    const d = state.selected, list = eventsOn(d);
+    $("agendaDate").textContent = (same(d, today) ? "Today · " : "") + fmt(d, { weekday: "long", month: "short", day: "numeric" });
+    $("agenda").innerHTML = list.length ? list.map(e => `<li><button type="button" class="t-${e.type}" data-ev="${e.id}"><span class="dot"></span><span class="a-title">${esc(e.title)}</span><span class="a-meta">${e.allDay ? (e.days > 1 ? `all day · day ${diff(e.date, d) + 1} of ${e.days}` : "all day") : `${fmtMin(e.start)}–${fmtMin(e.end)}`} · ${TYPES[e.type].label}</span></button></li>`).join("")
+      : `<li><p class="empty">Nothing scheduled. Double-click a day or press New event to add one.</p></li>`;
+  }
+
+  function renderCals() {
+    const c = state.cursor;
+    $("cals").innerHTML = Object.entries(TYPES).map(([t, v]) => {
+      const n = events.filter(e => e.type === t && (e.date.getMonth() === c.getMonth() && e.date.getFullYear() === c.getFullYear())).length;
+      return `<li><label class="t-${t}"><input type="checkbox" data-type="${t}" ${state.hidden.has(t) ? "" : "checked"}><span class="swatch"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 5 2 2 4-4"/></svg></span><span class="c-name">${v.label}</span><span class="c-count" title="Events this month">${n}</span></label></li>`;
+    }).join("");
+    $("legend").innerHTML = Object.entries(TYPES).map(([t, v]) => `<span class="t-${t}"><span class="dot"></span>${v.label}</span>`).join("")
+      + `<span class="hint">${state.view === "month" ? "Arrow keys move the selection · Enter opens the week" : "Click an empty slot to add an event"}</span>`;
+  }
+
+  function render(focusGrid) {
+    const c = state.cursor;
+    $("vMonth").setAttribute("aria-pressed", state.view === "month");
+    $("vWeek").setAttribute("aria-pressed", state.view === "week");
+    $("main").dataset.view = state.view;
+    if (state.view === "month") {
+      $("periodLabel").textContent = fmt(c, { month: "long", year: "numeric" });
+      $("weekTag").hidden = true;
+      renderMonth();
+    } else {
+      const ws = sow(c), we = addDays(ws, 6);
+      const sameMonth = ws.getMonth() === we.getMonth();
+      $("periodLabel").textContent = sameMonth
+        ? `${fmt(ws, { month: "short" })} ${ws.getDate()} – ${we.getDate()}, ${we.getFullYear()}`
+        : `${fmt(ws, { month: "short", day: "numeric" })} – ${fmt(we, { month: "short", day: "numeric" })}, ${we.getFullYear()}`;
+      $("weekTag").hidden = false;
+      $("weekTag").textContent = `W${pad(isoWeek(ws))}`;
+      renderWeek();
+    }
+    renderMini(); renderAgenda(); renderCals();
+    if (focusGrid) scroller.querySelector(".cell.sel")?.focus();
+  }
+
+  // ---------- navigation ----------
+  function setView(v) {
+    if (state.view === v) return;
+    state.view = v;
+    state.cursor = new Date(state.selected);
+    try { localStorage.setItem("atlas-cal-view", v); } catch (e) {}
+    render();
+    if (v === "week") scrollToMorning();
+  }
+  function scrollToMorning() { scroller.scrollTop = (8 - START_H) * 52; }
+  function step(dir) {
+    const c = state.cursor;
+    state.cursor = state.view === "month" ? new Date(c.getFullYear(), c.getMonth() + dir, 1) : addDays(c, dir * 7);
+    state.mini = new Date(state.cursor);
+    render();
+  }
+  function select(d, opts = {}) {
+    state.selected = sod(d);
+    const inView = state.view === "month"
+      ? d.getMonth() === state.cursor.getMonth() && d.getFullYear() === state.cursor.getFullYear()
+      : diff(sow(state.cursor), d) >= 0 && diff(sow(state.cursor), d) < 7;
+    if (!inView || opts.move) state.cursor = new Date(d);
+    state.mini = new Date(d);
+    render(opts.focus);
+  }
+
+  $("vMonth").onclick = () => setView("month");
+  $("vWeek").onclick = () => setView("week");
+  $("prev").onclick = () => step(-1);
+  $("next").onclick = () => step(1);
+  $("todayBtn").onclick = () => { select(today, { move: true }); if (state.view === "week") scrollToMorning(); };
+  $("miniPrev").onclick = () => { state.mini = new Date(state.mini.getFullYear(), state.mini.getMonth() - 1, 1); renderMini(); };
+  $("miniNext").onclick = () => { state.mini = new Date(state.mini.getFullYear(), state.mini.getMonth() + 1, 1); renderMini(); };
+  $("mini").onclick = e => { const b = e.target.closest("[data-mini]"); if (b) select(fromKey(b.dataset.mini)); };
+  $("cals").onchange = e => {
+    const t = e.target.dataset.type; if (!t) return;
+    e.target.checked ? state.hidden.delete(t) : state.hidden.add(t);
+    render();
+    $("cals").querySelector(`[data-type="${t}"]`)?.focus();
+  };
+  $("agenda").onclick = e => { const b = e.target.closest("[data-ev]"); if (b) openDetail(+b.dataset.ev); };
+
+  scroller.addEventListener("click", e => {
+    const ev = e.target.closest("[data-ev]");
+    if (ev) return openDetail(+ev.dataset.ev);
+    const add = e.target.closest("[data-add]");
+    if (add) return openCreate(fromKey(add.dataset.add));
+    const more = e.target.closest("[data-more]");
+    if (more) { state.selected = fromKey(more.dataset.more); state.cursor = new Date(state.selected); state.view = "week"; render(); scrollToMorning(); return; }
+    const cell = e.target.closest(".cell, .wk-day");
+    if (cell) return select(fromKey(cell.dataset.date));
+    const col = e.target.closest("[data-col]");
+    if (col) {
+      const r = col.getBoundingClientRect();
+      const mins = START_H * 60 + Math.floor(((e.clientY - r.top) / r.height) * (END_H - START_H) * 2) * 30;
+      openCreate(fromKey(col.dataset.col), mins);
+    }
+  });
+  scroller.addEventListener("dblclick", e => {
+    const cell = e.target.closest(".cell");
+    if (cell && !e.target.closest("[data-ev],[data-more]")) openCreate(fromKey(cell.dataset.date));
+  });
+  scroller.addEventListener("keydown", e => {
+    const cell = e.target.closest(".cell");
+    if (!cell || e.target !== cell) return;
+    const moves = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+    if (moves[e.key]) { e.preventDefault(); select(addDays(state.selected, moves[e.key]), { focus: true }); }
+    else if (e.key === "Enter") { e.preventDefault(); setView("week"); }
+    else if (e.key === " ") { e.preventDefault(); select(fromKey(cell.dataset.date), { focus: true }); }
+    else if (e.key.toLowerCase() === "n") { e.preventDefault(); openCreate(state.selected); }
+  });
+
+  // ---------- create ----------
+  const dlg = $("createDlg");
+  $("fTypes").innerHTML = Object.entries(TYPES).map(([t, v], i) =>
+    `<label><input type="radio" name="ftype" id="ftype-${t}" value="${t}" ${i === 0 ? "checked" : ""}><span class="chip t-${t}"><span class="dot"></span>${v.label}</span></label>`).join("");
+  const syncAllDay = () => { $("fStart").disabled = $("fEnd").disabled = $("fAllDay").checked; };
+  $("fAllDay").onchange = syncAllDay;
+  function openCreate(d, mins) {
+    $("createForm").reset();
+    $("fErr").hidden = true;
+    $("fDate").value = key(d || state.selected);
+    const s = mins != null ? Math.min(mins, 22 * 60 + 30) : 10 * 60;
+    $("fStart").value = fmtMin(s);
+    $("fEnd").value = fmtMin(Math.min(s + 60, 23 * 60 + 45));
+    syncAllDay();
+    dlg.showModal();
+    $("fTitle").focus();
+  }
+  $("createBtn").onclick = () => openCreate(state.selected);
+  $("fCancel").onclick = () => dlg.close();
+  $("createForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const title = $("fTitle").value.trim(), date = $("fDate").value, allDay = $("fAllDay").checked;
+    const start = toMin($("fStart").value || "00:00"), end = toMin($("fEnd").value || "00:00");
+    const err = !title ? "Add a title so teammates know what this is."
+      : !date ? "Pick a date for the event."
+      : !allDay && end <= start ? "End time needs to be after the start time."
+      : "";
+    if (err) { $("fErr").textContent = err; $("fErr").hidden = false; return; }
+    const type = new FormData($("createForm")).get("ftype");
+    events.push({ id: ++uid, title, type, date: fromKey(date), allDay, days: 1, start: allDay ? 0 : start, end: allDay ? 0 : end });
+    state.hidden.delete(type);
+    dlg.close();
+    select(fromKey(date), { move: true });
+  });
+
+  // ---------- detail ----------
+  const det = $("detailDlg");
+  let current = null;
+  function openDetail(id) {
+    current = events.find(e => e.id === id);
+    if (!current) return;
+    const t = $("dType");
+    t.className = `chip detail-type t-${current.type}`;
+    t.innerHTML = `<span class="dot"></span>${TYPES[current.type].label}`;
+    $("dTitle").textContent = current.title;
+    $("dWhen").textContent = whenText(current);
+    det.showModal();
+    $("dClose").focus();
+  }
+  $("dClose").onclick = () => det.close();
+  $("dDelete").onclick = () => {
+    const i = events.indexOf(current);
+    if (i > -1) events.splice(i, 1);
+    det.close(); render();
+  };
+  [dlg, det].forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
+
+  render();
+  if (state.view === "week") scrollToMorning();
+})();
+</script>
+</body>
+</html>
